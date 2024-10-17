@@ -2,7 +2,7 @@ import cv2
 
 # Approach 
 
-nomimage = "lab-1/assets/fondvert.png"
+nomimage = "assets/fondvert.png"
 
 img = cv2.imread(nomimage)
 
