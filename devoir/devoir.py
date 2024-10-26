@@ -167,8 +167,8 @@ def main():
 
     final_output = {"dominant_colors": dominant_colors, "distances": distances}
 
-    with open("devoir/output.json", "w") as f:
-        json.dump(final_output, f, indent=4)
+    with open("devoir/output.json", "w", encoding="utf-8") as f:
+        json.dump(final_output, f, indent=4, ensure_ascii=False)
 
     print("Done! Output saved to devoir/output.json")
 
