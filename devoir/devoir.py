@@ -84,8 +84,7 @@ def chi2_distance(dominant_colors_A, dominant_colors_B, eps=1e-10):
 
 
 def find_dominant_colors(image):
-    img = cv2.imread(image, 1)
-    img_lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+    img_lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
 
     img_flat = img_lab.reshape((-1, 3))
 
@@ -122,31 +121,90 @@ def main():
 
     onlyfiles.sort()
 
-    print("Retrieving dominant colors for", len(onlyfiles), "images")
+    print("Retrieving dominant colors and historgrams for", len(onlyfiles), "images")
 
     dominant_colors = {}
+    histograms = {}
 
-    for image in onlyfiles:
-        # string of the list
-        dominant_colors[image] = find_dominant_colors("devoir/assets/" + image).tolist()
+    color = ("b", "g", "r")
+    imHistW = 512
+    imHistH = 400
+    bord = 10
+    binHistW = (imHistW - 2 * bord) / 256
+    histImage = np.ones((imHistH, imHistW, 3), dtype=np.uint8) * 255
 
-    # fig, axs = plt.subplots(10, 2, figsize=(20, 30))
-    # plt.subplots_adjust(hspace=0.5, wspace=0.5)
-    # plt.title("Histograms")
-    # plt.xlabel("Bins")
-    # plt.ylabel("Number of Pixels")
+    for file in onlyfiles:
+        image = cv2.imread("devoir/assets/" + file, 1)
+        imageH, imageW = image.shape[:2]
+        combinedW = imageW + imHistW
+        combinedH = max(imageH, imHistH)
+        combinedImage = np.ones((combinedH, combinedW, 3), dtype=np.uint8) * 255
 
-    # for i, image in enumerate(onlyfiles):
-    # img = cv2.imread("devoir/assets/" + image, 1)
-    # chans = cv2.split(img)
-    # colors = ("b", "g", "r")
+        # Place the image on the left
+        combinedImage[:imageH, :imageW] = image
 
-    # for chan, color in zip(chans, colors):
-    # hist = cv2.calcHist([chan], [0], None, [256], [0, 256])
+        # Create the histogram image
+        histImage = np.ones((imHistH, imHistW, 3), dtype=np.uint8) * 255
 
-    # axs[int(i / 2)][i % 2].plot(hist, color=color)
-    # axs[int(i / 2)][i % 2].set_xlim([0, 256])
-    # axs[int(i / 2)][i % 2].set_title(image)
+        cv2.line(
+            histImage,
+            (bord, imHistH - bord),
+            (bord, bord),
+            (0, 0, 0),
+            2,
+        )
+        cv2.line(
+            histImage,
+            (bord, imHistH - bord),
+            (imHistW - bord, imHistH - bord),
+            (0, 0, 0),
+            2,
+        )
+
+        histograms[file] = {}
+
+        for i, col in enumerate(color):
+            histr = cv2.calcHist([image], [i], None, [256], [0, 256], accumulate=False)
+
+            histograms[file][col] = histr.tolist()
+            # Normalize the histogram
+            cv2.normalize(
+                histr,
+                histr,
+                alpha=0,
+                beta=imHistH - 2 * bord,
+                norm_type=cv2.NORM_MINMAX,
+            )
+
+            for j in range(1, 256):
+                cv2.line(
+                    histImage,
+                    (
+                        int(bord + (j - 1) * binHistW),
+                        int(imHistH - bord - histr[j - 1]),
+                    ),
+                    (int(bord + j * binHistW), int(imHistH - bord - histr[j])),
+                    (
+                        255 if col == "b" else 0,
+                        255 if col == "g" else 0,
+                        255 if col == "r" else 0,
+                    ),
+                    1,
+                )
+
+        # Place the histogram on the right
+        combinedImage[:imHistH, imageW : imageW + imHistW] = histImage
+
+        window_name = f"Image and Histogram for {file}"
+        cv2.imshow(window_name, combinedImage)
+
+        # Move the window to a specific position (e.g., x=100, y=100)
+        cv2.moveWindow(window_name, 0, 0)
+
+        dominant_colors[file] = find_dominant_colors(image).tolist()
+
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
 
     print("Calculating distances")
 
@@ -155,28 +213,109 @@ def main():
 
     while index < len(onlyfiles):
         distances[onlyfiles[index]] = {}
+        base_image = cv2.imread("devoir/assets/" + onlyfiles[index], 1)
+        base_lab = cv2.cvtColor(base_image, cv2.COLOR_BGR2LAB)
+        base_hist = cv2.calcHist(
+            [base_lab], [0, 1, 2], None, [8, 8, 8], [0, 256, 0, 256, 0, 256]
+        )
+        cv2.normalize(base_hist, base_hist, 0, 1, cv2.NORM_MINMAX)
+
         for i in range(len(onlyfiles)):
             if index != i:
-                print("Comparing", onlyfiles[index], "and", onlyfiles[i])
-                distances[onlyfiles[index]][onlyfiles[i]] = chi2_distance(
-                    np.array(dominant_colors[onlyfiles[index]]),
-                    np.array(dominant_colors[onlyfiles[i]]),
+                distances[onlyfiles[index]][onlyfiles[i]] = {}
+                distances[onlyfiles[index]][onlyfiles[i]][
+                    "dominant_colors_comparison"
+                ] = float(
+                    chi2_distance(
+                        np.array(dominant_colors[onlyfiles[index]]),
+                        np.array(dominant_colors[onlyfiles[i]]),
+                    )
                 )
+
+                image = cv2.imread("devoir/assets/" + onlyfiles[i], 1)
+                lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+                hist = cv2.calcHist(
+                    [lab], [0, 1, 2], None, [8, 8, 8], [0, 256, 0, 256, 0, 256]
+                )
+                cv2.normalize(hist, hist, 0, 1, cv2.NORM_MINMAX)
+                distances[onlyfiles[index]][onlyfiles[i]]["histogram_comparison"] = (
+                    cv2.compareHist(base_hist, hist, cv2.HISTCMP_CHISQR)
+                )
+                distances[onlyfiles[index]][onlyfiles[i]]["general_comparison"] = float(
+                    (
+                        distances[onlyfiles[index]][onlyfiles[i]][
+                            "dominant_colors_comparison"
+                        ]
+                        + distances[onlyfiles[index]][onlyfiles[i]][
+                            "histogram_comparison"
+                        ]
+                    )
+                    / 2
+                )
+
+                base_image_rgb = cv2.cvtColor(base_image, cv2.COLOR_BGR2RGB)
+                comparison_image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+                # Create a white canvas
+                canvas_height = (
+                    max(base_image_rgb.shape[0], comparison_image_rgb.shape[0]) + 100
+                )
+                canvas_width = base_image_rgb.shape[1] + comparison_image_rgb.shape[1]
+                canvas = np.ones((canvas_height, canvas_width, 3), dtype=np.uint8) * 255
+
+                # Place the base image on the canvas
+                canvas[: base_image_rgb.shape[0], : base_image_rgb.shape[1]] = (
+                    base_image_rgb
+                )
+
+                # Place the comparison image on the canvas
+                canvas[: comparison_image_rgb.shape[0], base_image_rgb.shape[1] :] = (
+                    comparison_image_rgb
+                )
+
+                # Add text for the distances
+                text = (
+                    f"Chi2 Distance: {distances[onlyfiles[index]][onlyfiles[i]]['dominant_colors_comparison']}\n"
+                    f"Histogram Distance: {distances[onlyfiles[index]][onlyfiles[i]]['histogram_comparison']}\n"
+                    f"General Distance: {distances[onlyfiles[index]][onlyfiles[i]]['general_comparison']}"
+                )
+                y0, dy = (
+                    max(base_image_rgb.shape[0], comparison_image_rgb.shape[0]) + 20,
+                    30,
+                )
+                for i, line in enumerate(text.split("\n")):
+                    y = y0 + i * dy
+                    cv2.putText(
+                        canvas,
+                        line,
+                        (10, y),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5,
+                        (0, 0, 0),
+                        1,
+                        cv2.LINE_AA,
+                    )
+
+                # Display the canvas
+                cv2.imshow("Images and Distances", canvas)
+                cv2.moveWindow(
+                    "Images and Distances", 100, 100
+                )  # Move the window to a specific position
+                cv2.waitKey(0)
+                cv2.destroyAllWindows()
 
         index += 5
 
-    final_output = {"dominant_colors": dominant_colors, "distances": distances}
+    final_output = {
+        "dominant_colors": dominant_colors,
+        "histograms": histograms,
+        "distances": distances,
+    }
 
     with open("devoir/output.json", "w", encoding="utf-8") as f:
         json.dump(final_output, f, indent=4, ensure_ascii=False)
 
     print("Done! Output saved to devoir/output.json")
-
-    # TO FIX: segmentation fault (core dumped)  python -m pdb devoir/devoir.py
-    # a = ScrollableWindow(fig)
-    # a.showMaximized()
-    # ret = a.qapp.exec_()
-    # exit(ret)
 
 
 if __name__ == "__main__":
