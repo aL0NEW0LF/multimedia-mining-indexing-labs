@@ -3,7 +3,22 @@ import cv2
 import numpy as np
 
 
-def compare_hu_moments(imageA, imageB, method=1):
+def compare_hu_moments(
+    imageA: np.ndarray, imageB: np.ndarray, method: int = 1
+) -> np.float64:
+    """Compare the Hu moments of two images
+
+    Args:
+        imageA (numpy.ndarray): the first image
+        imageB (numpy.ndarray): the second image
+        method (int, optional): the method to use. Defaults to 1.
+
+    Raises:
+        Exception: False Zero: One of the images has no moments
+
+    Returns:
+        numpy.float64: the distance between the two images
+    """
     eps = 1e-5
     d = 0
     huMomentsA = cv2.HuMoments(cv2.moments(imageA)).flatten()
@@ -49,8 +64,6 @@ if __name__ == "__main__":
     _, imA = cv2.threshold(imageA, 128, 255, cv2.THRESH_BINARY)
     imageB = cv2.imread("assets/formes/apple-2.png", cv2.IMREAD_GRAYSCALE)
     _, imB = cv2.threshold(imageB, 128, 255, cv2.THRESH_BINARY)
-
-    compare_hu_moments(imA, imB)
 
     print("d1:", compare_hu_moments(imA, imB), end="\n")
     print("d2:", compare_hu_moments(imA, imB, 2), end="\n")
