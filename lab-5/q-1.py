@@ -1,4 +1,4 @@
-from math import log10
+from math import log10, copysign
 import cv2
 import numpy as np
 
@@ -8,13 +8,13 @@ def compare_hu_moments(imageA, imageB, method=1):
     anyA = False
     anyB = False
     d = 0
-    huMomentsA = cv2.HuMoments(cv2.moments(imageA))
-    huMomentsB = cv2.HuMoments(cv2.moments(imageB))
+    huMomentsA = cv2.HuMoments(cv2.moments(imageA)).flatten()
+    huMomentsB = cv2.HuMoments(cv2.moments(imageB)).flatten()
 
     if method == 1:
         for i in range(0, 7):
-            amA = abs(huMomentsA[i][0])
-            amB = abs(huMomentsB[i][0])
+            amA = abs(huMomentsA[i])
+            amB = abs(huMomentsB[i])
 
             if amA > 0:
                 anyA = True
@@ -42,8 +42,8 @@ def compare_hu_moments(imageA, imageB, method=1):
 
     elif method == 2:
         for i in range(0, 7):
-            amA = abs(huMomentsA[i][0])
-            amB = abs(huMomentsB[i][0])
+            amA = abs(huMomentsA[i])
+            amB = abs(huMomentsB[i])
 
             if amA > 0:
                 anyA = True
@@ -71,8 +71,8 @@ def compare_hu_moments(imageA, imageB, method=1):
 
     elif method == 3:
         for i in range(0, 7):
-            amA = abs(huMomentsA[i][0])
-            amB = abs(huMomentsB[i][0])
+            amA = abs(huMomentsA[i])
+            amB = abs(huMomentsB[i])
 
             if amA > 0:
                 anyA = True
@@ -112,10 +112,13 @@ if __name__ == "__main__":
     imageB = cv2.imread("assets/formes/apple-2.png", cv2.IMREAD_GRAYSCALE)
     _, imB = cv2.threshold(imageB, 128, 255, cv2.THRESH_BINARY)
 
-    print("d1:", compare_hu_moments(imA, imB))
-    print("d2:", compare_hu_moments(imA, imB, 2))
-    print("d3:", compare_hu_moments(imA, imB, 3))
+    compare_hu_moments(imA, imB)
 
+    print("d1:", compare_hu_moments(imA, imB), end="\n")
+    print("d2:", compare_hu_moments(imA, imB, 2), end="\n")
+    print("d3:", compare_hu_moments(imA, imB, 3), end="\n")
+
+    """
     cv2.namedWindow("comparison", cv2.WINDOW_NORMAL)
     canvas_height = max(imA.shape[0], imB.shape[0]) + 50
     canvas_width = imA.shape[1] + imB.shape[1]
@@ -151,3 +154,4 @@ if __name__ == "__main__":
     cv2.imshow("comparison", canvas)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
+    """
